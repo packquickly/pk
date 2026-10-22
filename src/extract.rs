@@ -87,7 +87,7 @@ fn passes_exists(m: &Match, rule: &Rule, base: &Path) -> bool {
         Some(group) => m
             .groups
             .get(group)
-            .is_some_and(|path| base.join(path).exists()),
+            .is_some_and(|path| base.join(path).is_file()),
     }
 }
 
@@ -129,14 +129,15 @@ mod tests {
     }
 
     #[test]
-    fn keeps_only_existing_paths_from_git_status() {
+    fn keeps_only_existing_files_from_git_status() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("src")).unwrap();
         std::fs::write(dir.path().join("src/main.rs"), "").unwrap();
         let status = "On branch main\n\
                       Changes not staged for commit:\n\
                       \tmodified:   src/main.rs\n\
-                      \tdeleted:    gone.rs\n";
+                      \tdeleted:    gone.rs\n\
+                      Untracked files: src/ . /\n";
 
         let matches = extract(status, &parse(RULES).unwrap().rules, dir.path());
 

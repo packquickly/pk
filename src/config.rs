@@ -17,7 +17,7 @@ pub struct Config {
 pub struct Rule {
     pub name: String,
     pub regex: Regex,
-    /// Capture group whose value must be an existing path for a match to count.
+    /// Capture group whose value must be an existing file for a match to count.
     pub exists: Option<String>,
     /// Command words, each possibly containing placeholders (see [`crate::invoke`]).
     pub invoke: Vec<String>,

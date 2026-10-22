@@ -49,8 +49,8 @@ invoke = "open {}"
   contains prompt lines, only the text between the last two is searched: the output of the
   command you just ran. Input without prompt lines (e.g. piped) is searched in full.
 - `extract`: a [Rust regex](https://docs.rs/regex/latest/regex/#syntax) (no lookaround).
-- `exists` (optional): a named capture group whose value must be an existing path, relative to
-  the current directory.
+- `exists` (optional): a named capture group whose value must be an existing file (not a
+  directory), relative to the current directory.
 - `invoke`: the command to run. `{}` is the whole match, `{name}` a named group, and
   `{name:default}` falls back to `default` when the group didn't match.
 
