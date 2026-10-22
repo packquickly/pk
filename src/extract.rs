@@ -1,7 +1,32 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+use regex::Regex;
+
 use crate::config::Rule;
+
+/// The text between the last two lines matching `prompt`, i.e. the output of the last command
+/// when the final prompt line is the one pk was run from. With a single prompt line, the text
+/// before it; with none, all of `text`.
+pub fn last_output<'a>(text: &'a str, prompt: &Regex) -> &'a str {
+    let prompts: Vec<(usize, usize)> = line_spans(text)
+        .filter(|&(start, end)| prompt.is_match(text[start..end].trim_end_matches(['\n', '\r'])))
+        .collect();
+    match prompts.as_slice() {
+        [] => text,
+        [only] => &text[..only.0],
+        [.., previous, last] => &text[previous.1..last.0],
+    }
+}
+
+/// Byte ranges of each line, including its line terminator.
+fn line_spans(text: &str) -> impl Iterator<Item = (usize, usize)> + '_ {
+    text.split_inclusive('\n').scan(0, |offset, line| {
+        let start = *offset;
+        *offset += line.len();
+        Some((start, *offset))
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Match {
@@ -84,6 +109,21 @@ mod tests {
         invoke = "nvim {path}"
     "#;
 
+    #[test]
+    fn last_output_is_between_the_last_two_prompts() {
+        let prompt = Regex::new("^❯ ").unwrap();
+        let screen = "❯ ls\nCargo.toml\nsrc\n\
+                      pk on main\n❯ git status\n\tmodified: src/main.rs\n\
+                      pk on main\n❯ pk --file ";
+
+        assert_eq!(
+            last_output(screen, &prompt),
+            "\tmodified: src/main.rs\npk on main\n"
+        );
+        assert_eq!(last_output("out\n❯ pk", &prompt), "out\n");
+        assert_eq!(last_output("no prompts\n", &prompt), "no prompts\n");
+    }
+
     fn texts(matches: &[Match]) -> Vec<&str> {
         matches.iter().map(|m| m.text.as_str()).collect()
     }
@@ -98,7 +138,7 @@ mod tests {
                       \tmodified:   src/main.rs\n\
                       \tdeleted:    gone.rs\n";
 
-        let matches = extract(status, &parse(RULES).unwrap(), dir.path());
+        let matches = extract(status, &parse(RULES).unwrap().rules, dir.path());
 
         assert_eq!(texts(&matches), ["src/main.rs"]);
     }
@@ -108,7 +148,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("a.rs"), "").unwrap();
 
-        let matches = extract("a.rs:12 then a.rs", &parse(RULES).unwrap(), dir.path());
+        let matches = extract(
+            "a.rs:12 then a.rs",
+            &parse(RULES).unwrap().rules,
+            dir.path(),
+        );
 
         assert_eq!(texts(&matches), ["a.rs:12", "a.rs"]);
         assert_eq!(
@@ -125,7 +169,7 @@ mod tests {
 
         let matches = extract(
             "see https://x.io then foo.rs, again https://x.io",
-            &parse(RULES).unwrap(),
+            &parse(RULES).unwrap().rules,
             dir.path(),
         );
 

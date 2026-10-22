@@ -24,10 +24,14 @@ fn main() -> Result<()> {
         .config
         .or_else(config::default_path)
         .context("cannot locate config: set HOME or pass --config")?;
-    let rules = config::load(&config_path)?;
-    let text = read_input(cli.file.as_deref())?;
+    let config::Config { prompt, rules } = config::load(&config_path)?;
+    let input = read_input(cli.file.as_deref())?;
+    let text = match &prompt {
+        Some(prompt) => extract::last_output(&input, prompt),
+        None => &input,
+    };
 
-    let matches = extract::extract(&text, &rules, &std::env::current_dir()?);
+    let matches = extract::extract(text, &rules, &std::env::current_dir()?);
     if matches.is_empty() {
         bail!("no matches");
     }

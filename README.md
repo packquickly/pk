@@ -28,6 +28,9 @@ Rules live in `~/.config/pk/config.toml` (or `$XDG_CONFIG_HOME/pk/config.toml`, 
 with its rule's name.
 
 ```toml
+# Optional: only search the last command's output (the default starship prompt starts with ❯).
+prompt = '^❯ '
+
 # Files, optionally with :line (e.g. from git status, rg -n, compiler errors).
 [[rule]]
 name = "path"
@@ -42,6 +45,9 @@ extract = '''https?://[^\s<>"'()\[\]]*[^\s<>"'()\[\].,;:!?]'''
 invoke = "open {}"
 ```
 
+- `prompt` (optional, top level): a regex matching your shell's prompt line. When the input
+  contains prompt lines, only the text between the last two is searched: the output of the
+  command you just ran. Input without prompt lines (e.g. piped) is searched in full.
 - `extract`: a [Rust regex](https://docs.rs/regex/latest/regex/#syntax) (no lookaround).
 - `exists` (optional): a named capture group whose value must be an existing path, relative to
   the current directory.

@@ -7,6 +7,13 @@ use serde::Deserialize;
 use crate::invoke::PLACEHOLDER;
 
 #[derive(Debug)]
+pub struct Config {
+    /// Matches a shell prompt line; see [`crate::extract::last_output`].
+    pub prompt: Option<Regex>,
+    pub rules: Vec<Rule>,
+}
+
+#[derive(Debug)]
 pub struct Rule {
     pub name: String,
     pub regex: Regex,
@@ -19,6 +26,7 @@ pub struct Rule {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawConfig {
+    prompt: Option<String>,
     #[serde(rename = "rule", default)]
     rules: Vec<RawRule>,
 }
@@ -40,15 +48,21 @@ pub fn default_path() -> Option<PathBuf> {
         .map(|dir| dir.join("pk").join("config.toml"))
 }
 
-pub fn load(path: &Path) -> Result<Vec<Rule>> {
+pub fn load(path: &Path) -> Result<Config> {
     let text =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     parse(&text).with_context(|| format!("parsing {}", path.display()))
 }
 
-pub fn parse(text: &str) -> Result<Vec<Rule>> {
+pub fn parse(text: &str) -> Result<Config> {
     let raw: RawConfig = toml::from_str(text)?;
-    raw.rules.into_iter().map(compile).collect()
+    let prompt = raw
+        .prompt
+        .map(|p| Regex::new(&p))
+        .transpose()
+        .context("invalid `prompt` regex")?;
+    let rules = raw.rules.into_iter().map(compile).collect::<Result<_>>()?;
+    Ok(Config { prompt, rules })
 }
 
 fn compile(raw: RawRule) -> Result<Rule> {
