@@ -1,0 +1,7 @@
+[package]
+name = "pk"
+version = "0.1.0"
+edition = "2024"
+description = "Extract matches from terminal output and act on the one you pick."
+
+[dependencies]
