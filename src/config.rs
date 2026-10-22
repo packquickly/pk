@@ -4,13 +4,16 @@ use anyhow::{Context, Result, bail};
 use regex::Regex;
 use serde::Deserialize;
 
+use crate::invoke::PLACEHOLDER;
+
 #[derive(Debug)]
 pub struct Rule {
     pub name: String,
     pub regex: Regex,
     /// Capture group whose value must be an existing path for a match to count.
     pub exists: Option<String>,
-    pub invoke: String,
+    /// Command words, each possibly containing placeholders (see [`crate::invoke`]).
+    pub invoke: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -52,19 +55,41 @@ fn compile(raw: RawRule) -> Result<Rule> {
     let regex =
         Regex::new(&raw.extract).with_context(|| format!("rule {:?}: invalid regex", raw.name))?;
     if let Some(group) = &raw.exists
-        && !regex.capture_names().flatten().any(|name| name == group)
+        && !has_group(&regex, group)
     {
         bail!(
             "rule {:?}: `exists` names unknown capture group {group:?}",
             raw.name
         );
     }
+    let invoke = parse_invoke(&raw.invoke, &regex)
+        .with_context(|| format!("rule {:?}: invalid `invoke`", raw.name))?;
     Ok(Rule {
         name: raw.name,
         regex,
         exists: raw.exists,
-        invoke: raw.invoke,
+        invoke,
     })
+}
+
+fn parse_invoke(template: &str, regex: &Regex) -> Result<Vec<String>> {
+    let words = shlex::split(template).context("unbalanced quotes")?;
+    if words.is_empty() {
+        bail!("empty command");
+    }
+    let unknown = words
+        .iter()
+        .flat_map(|word| PLACEHOLDER.captures_iter(word))
+        .map(|caps| caps["name"].to_owned())
+        .find(|name| !name.is_empty() && !has_group(regex, name));
+    if let Some(name) = unknown {
+        bail!("placeholder {{{name}}} names unknown capture group");
+    }
+    Ok(words)
+}
+
+fn has_group(regex: &Regex, group: &str) -> bool {
+    regex.capture_names().flatten().any(|name| name == group)
 }
 
 #[cfg(test)]
