@@ -65,14 +65,14 @@ and then pick from its output without piping. Add to `~/.config/ghostty/config`:
 
 ```ini
 # Visible screen.
-keybind = cmd+o=text:pk --file\x20
+keybind = cmd+o=text:\x15pk --file\x20
 keybind = chain=write_screen_file:paste
 keybind = chain=text:\r
 
 # Entire scrollback.
-keybind = cmd+shift+o=text:pk --file\x20
+keybind = cmd+shift+o=text:\x15pk --file\x20
 keybind = chain=write_scrollback_file:paste
 keybind = chain=text:\r
 ```
 
-This types into your prompt, so use it from an empty prompt. Requires Ghostty 1.3+.
+This types into your prompt, clearing it first with Ctrl-U (`\x15`). Requires Ghostty 1.3+.
